@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Modal, ScrollView, Platform,
@@ -19,19 +19,11 @@ const INITIAL_REGION = {
   longitudeDelta: 0.3,
 };
 
-// Returns true if point {latitude, longitude} is inside polygon array
-function pointInPolygon(point, polygon) {
-  let inside = false;
-  const x = point.longitude;
-  const y = point.latitude;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].longitude, yi = polygon[i].latitude;
-    const xj = polygon[j].longitude, yj = polygon[j].latitude;
-    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
+const STATUS_COLOR = {
+  paid:   '#4CAF50',
+  unpaid: '#F44336',
+  mixed:  '#FF9800',
+};
 
 export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -41,8 +33,31 @@ export default function MapScreen({ navigation }) {
   const [overlappingJobs, setOverlappingJobs] = useState([]);
   const [filter, setFilter] = useState('all');
   const mapRef = useRef(null);
+  // Prevents MapView's onPress from clearing selection when a polygon was just tapped
+  const polygonPressedRef = useRef(false);
 
-  useEffect(() => { loadJobs(); }, []);
+  useEffect(() => {
+    loadJobs();
+    let timer;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
+        const loc = await Location.getCurrentPositionAsync({});
+        if (cancelled) return;
+        timer = setTimeout(() => {
+          mapRef.current?.animateToRegion({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1,
+          }, 600);
+        }, 300);
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, []);
 
   const goToCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -56,11 +71,53 @@ export default function MapScreen({ navigation }) {
     }, 600);
   };
 
-  const filteredJobs = jobs.filter((j) => {
-    if (filter === 'paid') return j.paid;
-    if (filter === 'unpaid') return !j.paid;
+  const filteredJobs = useMemo(() => jobs.filter((j) => {
+    if (filter === 'paid') return getPaymentStatus(j) === 'paid';
+    if (filter === 'unpaid') return getPaymentStatus(j) !== 'paid';
     return true;
-  }).filter((j) => j.location || (j.polygon && j.polygon.length > 0));
+  }).filter((j) => j.location || (j.polygon && j.polygon.length > 0)), [jobs, filter]);
+
+  // Group jobs that share the same physical field into one polygon.
+  // This prevents z-order flickering when multiple jobs overlap the same coordinates.
+  const fieldGroups = useMemo(() => {
+    const map = new Map();
+    filteredJobs.forEach((job) => {
+      let key;
+      if (job.polygon && job.polygon.length >= 3) {
+        key = job.polygon.map((p) => `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`).join('|');
+      } else if (job.location) {
+        key = `pt:${job.location.latitude.toFixed(5)},${job.location.longitude.toFixed(5)}`;
+      } else {
+        return;
+      }
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          polygon: job.polygon?.length >= 3 ? job.polygon : null,
+          center: job.polygon?.length >= 3 ? getPolygonCenter(job.polygon) : job.location,
+          jobs: [],
+        });
+      }
+      map.get(key).jobs.push(job);
+    });
+    return Array.from(map.values()).map((group) => {
+      const statuses = group.jobs.map((j) => getPaymentStatus(j));
+      const allPaid   = statuses.every((s) => s === 'paid');
+      const allUnpaid = statuses.every((s) => s === 'unpaid');
+      return { ...group, status: allPaid ? 'paid' : allUnpaid ? 'unpaid' : 'mixed' };
+    });
+  }, [filteredJobs]);
+
+  const handleGroupPress = (group) => {
+    polygonPressedRef.current = true;
+    if (group.jobs.length === 1) {
+      setSelectedJob(group.jobs[0]);
+      setOverlappingJobs([]);
+    } else {
+      setOverlappingJobs(group.jobs);
+      setSelectedJob(null);
+    }
+  };
 
   const fitToJobs = () => {
     if (filteredJobs.length === 0) return;
@@ -84,49 +141,45 @@ export default function MapScreen({ navigation }) {
         provider={PROVIDER_GOOGLE}
         initialRegion={INITIAL_REGION}
         mapType="satellite"
-        onPress={(e) => {
-          const coord = e.nativeEvent.coordinate;
-          const tapped = filteredJobs.filter(
-            (j) => j.polygon?.length >= 3 && pointInPolygon(coord, j.polygon)
-          );
-          if (tapped.length === 1) {
-            setSelectedJob(tapped[0]);
-            setOverlappingJobs([]);
-          } else if (tapped.length > 1) {
-            setOverlappingJobs(tapped);
-            setSelectedJob(null);
-          } else {
-            setSelectedJob(null);
-            setOverlappingJobs([]);
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+        onPress={() => {
+          if (polygonPressedRef.current) {
+            polygonPressedRef.current = false;
+            return;
           }
+          setSelectedJob(null);
+          setOverlappingJobs([]);
         }}
       >
-        {filteredJobs.map((job) => {
-          const center = job.polygon && job.polygon.length > 0
-            ? getPolygonCenter(job.polygon)
-            : job.location;
-          const color = job.paid ? '#4CAF50' : '#F44336';
+        {fieldGroups.map((group) => {
+          const color = STATUS_COLOR[group.status];
+          const isSelected = selectedJob
+            ? group.jobs.some((j) => j.id === selectedJob.id)
+            : overlappingJobs.length > 0 && group.jobs.some((j) => overlappingJobs.some((o) => o.id === j.id));
 
           return (
-            <React.Fragment key={job.id}>
-              {job.polygon && job.polygon.length >= 3 && (
+            <React.Fragment key={group.key}>
+              {group.polygon && (
                 <Polygon
-                  coordinates={job.polygon}
-                  fillColor={selectedJob?.id === job.id
-                    ? (job.paid ? 'rgba(76,175,80,0.65)' : 'rgba(244,67,54,0.65)')
-                    : (job.paid ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)')}
+                  coordinates={group.polygon}
+                  fillColor={isSelected ? `${color}A8` : `${color}59`}
                   strokeColor={color}
-                  strokeWidth={selectedJob?.id === job.id ? 4 : 2}
+                  strokeWidth={isSelected ? 4 : 2}
+                  tappable
+                  onPress={() => handleGroupPress(group)}
                 />
               )}
-              {center && (
+              {group.center && (
                 <Marker
-                  coordinate={center}
-                  pinColor={color}
-                  onPress={() => setSelectedJob(job)}
+                  coordinate={group.center}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  onPress={() => handleGroupPress(group)}
                 >
                   <View style={[styles.markerBubble, { backgroundColor: color }]}>
-                    <Text style={styles.markerText}>{formatSurface(job.surface)}</Text>
+                    <Text style={styles.markerText}>
+                      {formatSurface(group.jobs[0].surface)}
+                    </Text>
                   </View>
                 </Marker>
               )}
@@ -165,19 +218,23 @@ export default function MapScreen({ navigation }) {
 
       {/* Legend — top right */}
       <View style={[styles.legend, { top: insets.top + SPACING.sm, right: SPACING.md }]}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-          <Text style={styles.legendText}>Paid</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#F44336' }]} />
-          <Text style={styles.legendText}>Unpaid</Text>
-        </View>
+        {[
+          { key: 'paid',   label: 'Paid' },
+          { key: 'unpaid', label: 'Unpaid' },
+          { key: 'mixed',  label: 'Mixed' },
+        ].map(({ key, label }) => (
+          <View key={key} style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: STATUS_COLOR[key] }]} />
+            <Text style={styles.legendText}>{label}</Text>
+          </View>
+        ))}
       </View>
 
       {/* Job Count */}
       <View style={styles.countBadge}>
-        <Text style={styles.countText}>{filteredJobs.length} field{filteredJobs.length !== 1 ? 's' : ''} on map</Text>
+        <Text style={styles.countText}>
+          {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''} · {fieldGroups.length} field{fieldGroups.length !== 1 ? 's' : ''}
+        </Text>
       </View>
 
       {/* Selected Job Card */}
@@ -218,14 +275,34 @@ export default function MapScreen({ navigation }) {
               <Text style={styles.jobCardRemaining}>Remaining: {fmt(remaining)}</Text>
             )}
 
-            {/* Open button */}
-            <TouchableOpacity
-              style={styles.openBtn}
-              onPress={() => { setSelectedJob(null); navigation.navigate('JobDetail', { jobId: selectedJob.id }); }}
-            >
-              <Text style={styles.openBtnText}>Open Job</Text>
-              <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
-            </TouchableOpacity>
+            {/* Actions row */}
+            <View style={styles.jobCardActions}>
+              <TouchableOpacity
+                style={styles.newJobBtn}
+                onPress={() => {
+                  setSelectedJob(null);
+                  navigation.navigate('AddJob', {
+                    prefill: {
+                      clientName: selectedJob.clientName,
+                      polygon: selectedJob.polygon,
+                      location: selectedJob.location,
+                      locationName: selectedJob.locationName,
+                      surface: selectedJob.surface,
+                    },
+                  });
+                }}
+              >
+                <Ionicons name="add-circle-outline" size={15} color={COLORS.primary} />
+                <Text style={styles.newJobBtnText}>New job</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.openBtn}
+                onPress={() => { setSelectedJob(null); navigation.navigate('JobDetail', { jobId: selectedJob.id }); }}
+              >
+                <Text style={styles.openBtnText}>Open Job</Text>
+                <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
           </View>
         );
       })()}
@@ -258,6 +335,26 @@ export default function MapScreen({ navigation }) {
               </TouchableOpacity>
             );
           })}
+          <TouchableOpacity
+            style={styles.overlapNewJobBtn}
+            onPress={() => {
+              const ref = overlappingJobs[0];
+              const allSameClient = overlappingJobs.every((j) => j.clientName === ref.clientName);
+              setOverlappingJobs([]);
+              navigation.navigate('AddJob', {
+                prefill: {
+                  clientName: allSameClient ? ref.clientName : '',
+                  polygon: ref.polygon,
+                  location: ref.location,
+                  locationName: ref.locationName,
+                  surface: ref.surface,
+                },
+              });
+            }}
+          >
+            <Ionicons name="add-circle-outline" size={15} color={COLORS.primary} />
+            <Text style={styles.newJobBtnText}>New job at this field</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -343,25 +440,32 @@ const styles = StyleSheet.create({
   jobCardLocation: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.sm },
   jobCardLocationText: { fontSize: 12, color: COLORS.gray, flex: 1 },
   jobCardRemaining: { fontSize: 12, color: COLORS.secondary, ...FONTS.semiBold, marginBottom: SPACING.sm },
+  jobCardActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  newJobBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    borderWidth: 1.5, borderColor: COLORS.primary, borderRadius: RADIUS.md,
+    paddingVertical: 10, paddingHorizontal: 12,
+  },
+  newJobBtnText: { color: COLORS.primary, ...FONTS.bold, fontSize: 13 },
   openBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
-    paddingVertical: 10, marginTop: 4,
+    paddingVertical: 10,
   },
   openBtnText: { color: COLORS.white, ...FONTS.bold, fontSize: 14 },
   legend: {
     position: 'absolute',
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: RADIUS.md,
-    paddingVertical: 6,
-    paddingHorizontal: SPACING.md,
-    gap: SPACING.md,
+    flexDirection: 'column',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: RADIUS.sm,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    gap: 3,
     ...SHADOW.small,
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendText: { fontSize: 11, color: COLORS.text, ...FONTS.medium },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 7, height: 7, borderRadius: 4 },
+  legendText: { fontSize: 10, color: COLORS.text, ...FONTS.medium },
 
   overlapCard: {
     position: 'absolute',
@@ -374,6 +478,11 @@ const styles = StyleSheet.create({
     ...SHADOW.medium,
   },
   overlapHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  overlapNewJobBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderTopWidth: 1, borderTopColor: COLORS.grayBorder,
+    paddingTop: SPACING.sm, marginTop: 4,
+  },
   overlapTitle: { fontSize: 14, ...FONTS.bold, color: COLORS.text },
   overlapRow: {
     flexDirection: 'row', alignItems: 'center',

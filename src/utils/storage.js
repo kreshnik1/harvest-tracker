@@ -29,7 +29,6 @@ export const saveUser = async (user) => {
   });
 
   if (error) throw new Error('Failed to create account. Please try again.');
-  console.log('✓ User registered in Supabase');
 };
 
 export const loginUser = async (email, password) => {
@@ -52,7 +51,6 @@ export const loginUser = async (email, password) => {
 
   // Store session locally so app remembers login between restarts
   await AsyncStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user));
-  console.log('✓ Login successful');
   return user;
 };
 
@@ -106,10 +104,8 @@ export const saveSettings = async (userId, settings) => {
       currency_symbol: settings.currency.symbol,
       currency_name: settings.currency.name,
     });
-    if (error) console.warn('Supabase saveSettings error:', error.message);
-  } catch (e) {
-    console.warn('Supabase offline, settings saved locally only');
-  }
+    if (error && __DEV__) console.warn('Supabase saveSettings error:', error.message);
+  } catch {}
 };
 
 // ─── JOBS ─────────────────────────────────────────────────────────────────────
@@ -153,10 +149,8 @@ export const saveJob = async (job) => {
 
   // Sync to Supabase
   const row = toRow(job);
-  console.log('Saving job to Supabase:', JSON.stringify(row));
   const { error } = await supabase.from('jobs').insert(row);
-  if (error) console.error('Supabase saveJob error:', JSON.stringify(error));
-  else console.log('✓ Job synced to Supabase');
+  if (error && __DEV__) console.warn('Supabase saveJob error:', JSON.stringify(error));
 };
 
 export const updateJob = async (updatedJob) => {
@@ -172,10 +166,8 @@ export const updateJob = async (updatedJob) => {
   // Sync to Supabase
   try {
     const { error } = await supabase.from('jobs').upsert(toRow(updatedJob));
-    if (error) console.warn('Supabase updateJob error:', error.message);
-  } catch {
-    console.warn('Supabase offline, update saved locally only');
-  }
+    if (error && __DEV__) console.warn('Supabase updateJob error:', error.message);
+  } catch {}
 };
 
 export const deleteJob = async (jobId) => {
@@ -188,10 +180,8 @@ export const deleteJob = async (jobId) => {
   // Sync to Supabase
   try {
     const { error } = await supabase.from('jobs').delete().eq('id', jobId);
-    if (error) console.warn('Supabase deleteJob error:', error.message);
-  } catch {
-    console.warn('Supabase offline, delete saved locally only');
-  }
+    if (error && __DEV__) console.warn('Supabase deleteJob error:', error.message);
+  } catch {}
 };
 
 // ─── FIELDS ───────────────────────────────────────────────────────────────────
@@ -244,11 +234,8 @@ export const saveField = async (field) => {
 
   try {
     const { error } = await supabase.from('fields').insert(toFieldRow(field));
-    if (error) console.warn('Supabase saveField error:', error.message);
-    else console.log('✓ Field synced to Supabase');
-  } catch {
-    console.warn('Supabase offline, field saved locally only');
-  }
+    if (error && __DEV__) console.warn('Supabase saveField error:', error.message);
+  } catch {}
 };
 
 export const deleteField = async (fieldId, userId) => {

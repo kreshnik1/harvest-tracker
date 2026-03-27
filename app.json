@@ -6,22 +6,29 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#2E7D32"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.harvesttracker.app",
+      "requiresFullScreen": false,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "We need your location to mark where you worked.",
-        "NSLocationAlwaysUsageDescription": "We need your location to mark where you worked."
+        "NSLocationWhenInUseUsageDescription": "Harvest Tracker uses your location to mark where you worked and to navigate the map to your current position.",
+        "NSLocationAlwaysUsageDescription": "Harvest Tracker uses your location to mark where you worked and to navigate the map to your current position.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Harvest Tracker uses your location to mark where you worked and to navigate the map to your current position."
       }
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2E7D32"
       },
       "package": "com.harvesttracker.app",
+      "enableProguardInReleaseBuilds": true,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
@@ -34,7 +41,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Harvest Tracker to use your location."
+          "locationWhenInUsePermission": "Allow Harvest Tracker to use your location to mark where you worked."
         }
       ]
     ]

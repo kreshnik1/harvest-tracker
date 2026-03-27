@@ -6,9 +6,6 @@ export const formatDate = (dateString) =>
     day: '2-digit', month: 'short', year: 'numeric',
   });
 
-export const formatCurrency = (amount) =>
-  `€${parseFloat(amount || 0).toFixed(2)}`;
-
 export const formatSurface = (m2) => {
   if (m2 >= 10000) return `${(m2 / 10000).toFixed(2)} ha`;
   return `${parseFloat(m2 || 0).toFixed(0)} m²`;

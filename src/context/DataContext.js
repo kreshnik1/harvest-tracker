@@ -1,10 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { getJobs, saveJob, updateJob, deleteJob, getFields, saveField, deleteField } from '../utils/storage';
 import { useAuth } from './AuthContext';
 import { getAmountPaid, getRemainingAmount, getPaymentStatus, generateId } from '../utils/helpers';
-
-// re-export generateId from helpers
-import { generateId as genId } from '../utils/helpers';
 
 const DataContext = createContext({});
 
@@ -28,40 +25,40 @@ export const DataProvider = ({ children }) => {
     setFields(data);
   }, [user]);
 
-  const addField = async (field) => {
+  const addField = useCallback(async (field) => {
     const newField = { ...field, userId: user.id };
     await saveField(newField);
     await loadFields();
-  };
+  }, [user, loadFields]);
 
-  const removeField = async (fieldId) => {
+  const removeField = useCallback(async (fieldId) => {
     await deleteField(fieldId, user.id);
     await loadFields();
-  };
+  }, [user, loadFields]);
 
-  const addJob = async (job) => {
+  const addJob = useCallback(async (job) => {
     const newJob = { ...job, userId: user.id, payments: job.payments || [] };
     await saveJob(newJob);
     await loadJobs();
-  };
+  }, [user, loadJobs]);
 
-  const editJob = async (job) => {
+  const editJob = useCallback(async (job) => {
     await updateJob(job);
     await loadJobs();
-  };
+  }, [loadJobs]);
 
-  const removeJob = async (jobId) => {
+  const removeJob = useCallback(async (jobId) => {
     await deleteJob(jobId);
     await loadJobs();
-  };
+  }, [loadJobs]);
 
   // Record a partial or full payment
-  const addPayment = async (jobId, amount, note = '') => {
+  const addPayment = useCallback(async (jobId, amount, note = '') => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
 
     const payment = {
-      id: genId(),
+      id: generateId(),
       amount: parseFloat(amount),
       date: new Date().toISOString(),
       note: note.trim(),
@@ -78,10 +75,10 @@ export const DataProvider = ({ children }) => {
       paidDate: fullyPaid ? new Date().toISOString() : job.paidDate,
     });
     await loadJobs();
-  };
+  }, [jobs, loadJobs]);
 
   // Remove a single payment entry
-  const removePayment = async (jobId, paymentId) => {
+  const removePayment = useCallback(async (jobId, paymentId) => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
 
@@ -96,43 +93,38 @@ export const DataProvider = ({ children }) => {
       paidDate: fullyPaid ? (job.paidDate || new Date().toISOString()) : null,
     });
     await loadJobs();
-  };
+  }, [jobs, loadJobs]);
 
   // Mark fully paid in one tap (adds a single payment for the remaining amount)
-  const markPaid = async (jobId) => {
+  const markPaid = useCallback(async (jobId) => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
     const remaining = getRemainingAmount(job);
     if (remaining > 0.001) {
       await addPayment(jobId, remaining, 'Full payment');
     } else {
-      // already paid — just ensure flag is set
       await updateJob({ ...job, paid: true, paidDate: job.paidDate || new Date().toISOString() });
       await loadJobs();
     }
-  };
+  }, [jobs, addPayment, loadJobs]);
 
   // Clear all payments
-  const markUnpaid = async (jobId) => {
+  const markUnpaid = useCallback(async (jobId) => {
     const job = jobs.find((j) => j.id === jobId);
     if (!job) return;
     await updateJob({ ...job, payments: [], paid: false, paidDate: null });
     await loadJobs();
-  };
+  }, [jobs, loadJobs]);
 
-  // Stats using new helpers
-  const totalCollected = jobs.reduce((s, j) => s + getAmountPaid(j), 0);
-  const totalPending   = jobs.reduce((s, j) => s + getRemainingAmount(j), 0);
-
-  const stats = {
+  const stats = useMemo(() => ({
     totalJobs:     jobs.length,
     totalSurface:  jobs.reduce((s, j) => s + parseFloat(j.surface || 0), 0),
     totalEarned:   jobs.reduce((s, j) => s + parseFloat(j.totalPrice || 0), 0),
-    totalPaid:     totalCollected,
-    totalUnpaid:   totalPending,
+    totalPaid:     jobs.reduce((s, j) => s + getAmountPaid(j), 0),
+    totalUnpaid:   jobs.reduce((s, j) => s + getRemainingAmount(j), 0),
     unpaidCount:   jobs.filter((j) => getPaymentStatus(j) !== 'paid').length,
     partialCount:  jobs.filter((j) => getPaymentStatus(j) === 'partial').length,
-  };
+  }), [jobs]);
 
   return (
     <DataContext.Provider value={{

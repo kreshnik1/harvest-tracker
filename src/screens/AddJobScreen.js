@@ -1,11 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, Alert, ActivityIndicator, Platform, Switch,
-  KeyboardAvoidingView, Modal, Dimensions,
+  KeyboardAvoidingView, Modal,
 } from 'react-native';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +20,7 @@ const INITIAL_REGION = {
   latitudeDelta: 0.05, longitudeDelta: 0.05,
 };
 
-export default function AddJobScreen({ navigation }) {
+export default function AddJobScreen({ navigation, route }) {
   const { addJob, jobs, fields, loadFields, addField, removeField } = useData();
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
@@ -52,10 +50,16 @@ export default function AddJobScreen({ navigation }) {
   const [newFieldName, setNewFieldName] = useState('');
 
   // Existing client names for autocomplete
-  const existingClients = [...new Set(jobs.map((j) => j.clientName).filter(Boolean))].sort();
-  const suggestions = clientName.length > 0
-    ? existingClients.filter((n) => n.toLowerCase().includes(clientName.toLowerCase()) && n.toLowerCase() !== clientName.toLowerCase())
-    : [];
+  const existingClients = useMemo(
+    () => [...new Set(jobs.map((j) => j.clientName).filter(Boolean))].sort(),
+    [jobs],
+  );
+  const suggestions = useMemo(
+    () => clientName.length > 0
+      ? existingClients.filter((n) => n.toLowerCase().includes(clientName.toLowerCase()) && n.toLowerCase() !== clientName.toLowerCase())
+      : [],
+    [clientName, existingClients],
+  );
 
   useEffect(() => { loadFields(); }, []);
 
@@ -135,6 +139,34 @@ export default function AddJobScreen({ navigation }) {
         setMarkerLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       }
     })();
+  }, []);
+
+  // Pre-fill from map screen when launching "New job here"
+  useEffect(() => {
+    const p = route.params?.prefill;
+    if (!p) return;
+    if (p.clientName) setClientName(p.clientName);
+    if (p.locationName) setLocationName(p.locationName);
+    if (p.polygon?.length >= 3) {
+      setPolygonPoints(p.polygon);
+      setCalculatedArea(p.surface || 0);
+      if (p.surface) setSurface(p.surface.toString());
+      setFieldSaved(true);
+      const lats = p.polygon.map((pt) => pt.latitude);
+      const lngs = p.polygon.map((pt) => pt.longitude);
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+      setPreviewRegion({
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: Math.max((maxLat - minLat) * 1.8, 0.002),
+        longitudeDelta: Math.max((maxLng - minLng) * 1.8, 0.002),
+      });
+    } else if (p.location) {
+      setMarkerLocation(p.location);
+      if (p.surface) { setSurface(p.surface.toString()); setCalculatedArea(p.surface); }
+      setPreviewRegion({ ...p.location, latitudeDelta: 0.005, longitudeDelta: 0.005 });
+    }
   }, []);
 
   useEffect(() => {
@@ -329,7 +361,7 @@ export default function AddJobScreen({ navigation }) {
               </FieldRow>
             </TouchableOpacity>
 
-            <FieldRow icon="location-outline" last alignTop>
+            <FieldRow icon="location-outline" alignTop last>
               <TextInput
                 style={[styles.input, { height: 70, textAlignVertical: 'top', paddingTop: 10 }]}
                 placeholder="Location name (e.g. North Field, Village Road...)"
@@ -546,12 +578,34 @@ function MapPickerModal({ visible, initialRegion, initialPolygon, initialMarker,
   const [region, setRegion] = useState(initialRegion || INITIAL_REGION);
   const area = pts.length >= 3 ? calculatePolygonArea(pts) : 0;
 
-  // Reset state when modal opens
+  // Reset state when modal opens + auto-navigate to user location
   useEffect(() => {
     if (visible) {
       setPts(initialPolygon || []);
       setMarker(initialMarker || null);
       setRegion(initialRegion || INITIAL_REGION);
+      // If no pre-existing location, go to user's GPS position
+      if (!initialPolygon?.length && !initialMarker) {
+        let timer;
+        let cancelled = false;
+        (async () => {
+          try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted' || cancelled) return;
+            const loc = await Location.getCurrentPositionAsync({});
+            if (cancelled) return;
+            const r = {
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            };
+            setRegion(r);
+            timer = setTimeout(() => mapRef.current?.animateToRegion(r, 500), 300);
+          } catch (_) {}
+        })();
+        return () => { cancelled = true; clearTimeout(timer); };
+      }
     }
   }, [visible]);
 
@@ -608,6 +662,8 @@ function MapPickerModal({ visible, initialRegion, initialPolygon, initialMarker,
           provider={PROVIDER_GOOGLE}
           initialRegion={region}
           mapType="satellite"
+          showsUserLocation={true}
+          showsMyLocationButton={false}
           onPress={handleMapPress}
         >
           {pts.map((pt, i) => (
@@ -877,6 +933,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryPale,
   },
   saveFieldBtnText: { fontSize: 13, color: COLORS.primary, ...FONTS.medium },
+
 });
 
 const fc = StyleSheet.create({
