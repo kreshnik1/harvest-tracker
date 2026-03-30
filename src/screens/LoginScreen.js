@@ -5,11 +5,13 @@ import {
   ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/SettingsContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
+  const t = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -17,14 +19,14 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('error'), t('fill_all_fields'));
       return;
     }
     setLoading(true);
     try {
       await login(email, password);
     } catch (e) {
-      Alert.alert('Login Failed', e.message);
+      Alert.alert(t('login_failed'), e.message);
     } finally {
       setLoading(false);
     }
@@ -39,19 +41,19 @@ export default function LoginScreen({ navigation }) {
             <Ionicons name="leaf" size={48} color={COLORS.white} />
           </View>
           <Text style={styles.appName}>Harvest Tracker</Text>
-          <Text style={styles.subtitle}>Track your fields & payments</Text>
+          <Text style={styles.subtitle}>{t('app_subtitle')}</Text>
         </View>
 
         {/* Form Card */}
         <View style={styles.card}>
-          <Text style={styles.title}>Sign In</Text>
+          <Text style={styles.title}>{t('sign_in')}</Text>
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('email')}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="mail-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="your@email.com"
+              placeholder={t('email_placeholder')}
               placeholderTextColor={COLORS.gray}
               value={email}
               onChangeText={setEmail}
@@ -61,7 +63,7 @@ export default function LoginScreen({ navigation }) {
             />
           </View>
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('password')}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
             <TextInput
@@ -81,13 +83,13 @@ export default function LoginScreen({ navigation }) {
             {loading ? (
               <ActivityIndicator color={COLORS.white} />
             ) : (
-              <Text style={styles.loginBtnText}>Sign In</Text>
+              <Text style={styles.loginBtnText}>{t('sign_in')}</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.registerLink} onPress={() => navigation.navigate('Register')}>
             <Text style={styles.registerLinkText}>
-              Don't have an account? <Text style={styles.registerLinkBold}>Create one</Text>
+              {t('no_account')} <Text style={styles.registerLinkBold}>{t('create_account')}</Text>
             </Text>
           </TouchableOpacity>
         </View>

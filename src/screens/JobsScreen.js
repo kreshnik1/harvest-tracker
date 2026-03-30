@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 import { formatSurface, formatDate, getPaymentStatus, getRemainingAmount } from '../utils/helpers';
 
 export default function JobsScreen({ navigation }) {
@@ -16,6 +16,7 @@ export default function JobsScreen({ navigation }) {
   const [filter, setFilter] = useState('all');
   const insets = useSafeAreaInsets();
   const fmt = useCurrency();
+  const t = useTranslation();
 
   useEffect(() => { loadJobs(); }, []);
 
@@ -36,8 +37,8 @@ export default function JobsScreen({ navigation }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.headerTitle}>Jobs</Text>
-        <Text style={styles.headerCount}>{jobs.length} total</Text>
+        <Text style={styles.headerTitle}>{t('jobs')}</Text>
+        <Text style={styles.headerCount}>{jobs.length} {t('total')}</Text>
       </View>
 
       {/* Search Bar */}
@@ -45,7 +46,7 @@ export default function JobsScreen({ navigation }) {
         <Ionicons name="search-outline" size={18} color={COLORS.gray} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by client or location..."
+          placeholder={t('search_by_client')}
           placeholderTextColor={COLORS.gray}
           value={search}
           onChangeText={setSearch}
@@ -66,7 +67,7 @@ export default function JobsScreen({ navigation }) {
             onPress={() => setFilter(f)}
           >
             <Text style={[styles.pillText, filter === f && styles.pillTextActive]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {t(f === 'all' ? 'all' : f === 'paid' ? 'paid' : f === 'partial' ? 'partial' : 'unpaid')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -81,7 +82,7 @@ export default function JobsScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="leaf-outline" size={52} color={COLORS.grayBorder} />
-            <Text style={styles.emptyText}>No jobs found</Text>
+            <Text style={styles.emptyText}>{t('no_jobs_found')}</Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -90,7 +91,7 @@ export default function JobsScreen({ navigation }) {
           const dotColor = status === 'paid' ? COLORS.primaryLight : status === 'partial' ? COLORS.secondary : COLORS.danger;
           const badgeBg  = status === 'paid' ? COLORS.successLight : status === 'partial' ? '#FFF8E1' : COLORS.dangerLight;
           const badgeColor = status === 'paid' ? COLORS.success : status === 'partial' ? '#E65100' : COLORS.danger;
-          const badgeLabel = status === 'paid' ? 'Paid' : status === 'partial' ? 'Partial' : 'Unpaid';
+          const badgeLabel = status === 'paid' ? t('paid') : status === 'partial' ? t('partial') : t('unpaid');
           return (
           <TouchableOpacity
             style={styles.card}
@@ -114,7 +115,7 @@ export default function JobsScreen({ navigation }) {
                 </View>
               ) : null}
               {status === 'partial' && (
-                <Text style={styles.remainingText}>Remaining: {fmt(remaining)}</Text>
+                <Text style={styles.remainingText}>{t('remaining')}: {fmt(remaining)}</Text>
               )}
             </View>
             <View style={styles.cardRight}>

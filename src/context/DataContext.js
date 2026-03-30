@@ -38,7 +38,11 @@ export const DataProvider = ({ children }) => {
 
   const addJob = useCallback(async (job) => {
     const newJob = { ...job, userId: user.id, payments: job.payments || [] };
-    await saveJob(newJob);
+    try {
+      await saveJob(newJob);
+    } catch {
+      // Supabase sync failed — job is saved locally and will retry on next load
+    }
     await loadJobs();
   }, [user, loadJobs]);
 

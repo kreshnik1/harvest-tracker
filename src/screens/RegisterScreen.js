@@ -5,11 +5,13 @@ import {
   ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/SettingsContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
+  const t = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,22 +21,22 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirm) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('error'), t('fill_all_fields'));
       return;
     }
     if (password !== confirm) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('error'), 'Passwords do not match');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert(t('error'), 'Password must be at least 6 characters');
       return;
     }
     setLoading(true);
     try {
       await register(name, email, password);
     } catch (e) {
-      Alert.alert('Registration Failed', e.message);
+      Alert.alert(t('register_failed'), e.message);
     } finally {
       setLoading(false);
     }
@@ -53,18 +55,18 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.logoCircle}>
             <Ionicons name="person-add" size={40} color={COLORS.white} />
           </View>
-          <Text style={styles.appName}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Harvest Tracker today</Text>
+          <Text style={styles.appName}>{t('create_account')}</Text>
+          <Text style={styles.subtitle}>{t('app_subtitle')}</Text>
         </View>
 
         {/* Form Card */}
         <View style={styles.card}>
-          <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.label}>{t('full_name')}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="person-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="John Smith"
+              placeholder={t('name_placeholder')}
               placeholderTextColor={COLORS.gray}
               value={name}
               onChangeText={setName}
@@ -72,12 +74,12 @@ export default function RegisterScreen({ navigation }) {
             />
           </View>
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('email')}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="mail-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="your@email.com"
+              placeholder={t('email_placeholder')}
               placeholderTextColor={COLORS.gray}
               value={email}
               onChangeText={setEmail}
@@ -87,7 +89,7 @@ export default function RegisterScreen({ navigation }) {
             />
           </View>
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('password')}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
             <TextInput
@@ -103,7 +105,7 @@ export default function RegisterScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Confirm Password</Text>
+          <Text style={styles.label}>{t('confirm_password')}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.gray} style={styles.inputIcon} />
             <TextInput
@@ -120,13 +122,13 @@ export default function RegisterScreen({ navigation }) {
             {loading ? (
               <ActivityIndicator color={COLORS.white} />
             ) : (
-              <Text style={styles.registerBtnText}>Create Account</Text>
+              <Text style={styles.registerBtnText}>{t('create_account')}</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginLink} onPress={() => navigation.goBack()}>
             <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkBold}>Sign in</Text>
+              {t('have_account')} <Text style={styles.loginLinkBold}>{t('sign_in')}</Text>
             </Text>
           </TouchableOpacity>
         </View>

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 import { formatSurface, formatDate } from '../utils/helpers';
 
 export default function ProfileScreen({ navigation }) {
@@ -16,11 +16,12 @@ export default function ProfileScreen({ navigation }) {
   const { stats, jobs } = useData();
   const insets = useSafeAreaInsets();
   const fmt = useCurrency();
+  const t = useTranslation();
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
+    Alert.alert(t('sign_out'), t('sign_out_confirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('sign_out'), style: 'destructive', onPress: logout },
     ]);
   };
 
@@ -40,57 +41,57 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <Text style={styles.name}>{user?.name}</Text>
         <Text style={styles.email}>{user?.email}</Text>
-        <Text style={styles.memberSince}>Member since {formatDate(user?.createdAt)}</Text>
+        <Text style={styles.memberSince}>{t('member_since')} {formatDate(user?.createdAt)}</Text>
       </View>
 
       {/* Year Summary */}
       <View style={styles.yearCard}>
-        <Text style={styles.yearTitle}>{currentYear} Summary</Text>
+        <Text style={styles.yearTitle}>{currentYear} {t('summary')}</Text>
         <View style={styles.yearStats}>
           <View style={styles.yearStat}>
             <Text style={styles.yearStatValue}>{thisYearJobs.length}</Text>
-            <Text style={styles.yearStatLabel}>Jobs</Text>
+            <Text style={styles.yearStatLabel}>{t('jobs')}</Text>
           </View>
           <View style={styles.yearDivider} />
           <View style={styles.yearStat}>
             <Text style={styles.yearStatValue}>{fmt(thisYearEarned)}</Text>
-            <Text style={styles.yearStatLabel}>Earned</Text>
+            <Text style={styles.yearStatLabel}>{t('earned')}</Text>
           </View>
           <View style={styles.yearDivider} />
           <View style={styles.yearStat}>
             <Text style={styles.yearStatValue}>
               {formatSurface(thisYearJobs.reduce((s, j) => s + parseFloat(j.surface || 0), 0))}
             </Text>
-            <Text style={styles.yearStatLabel}>Area</Text>
+            <Text style={styles.yearStatLabel}>{t('area')}</Text>
           </View>
         </View>
       </View>
 
       {/* All-time Stats */}
-      <Text style={styles.sectionTitle}>All-time Statistics</Text>
+      <Text style={styles.sectionTitle}>{t('alltime_stats')}</Text>
       <View style={styles.statsGrid}>
-        <StatRow icon="briefcase-outline" label="Total Jobs" value={stats.totalJobs.toString()} />
-        <StatRow icon="cash-outline" label="Total Earned" value={fmt(stats.totalEarned)} />
-        <StatRow icon="checkmark-circle-outline" label="Total Paid" value={fmt(stats.totalPaid)} color={COLORS.success} />
-        <StatRow icon="time-outline" label="Still Owed" value={fmt(stats.totalUnpaid)} color={stats.totalUnpaid > 0 ? COLORS.danger : COLORS.success} />
-        <StatRow icon="resize-outline" label="Total Surface" value={formatSurface(stats.totalSurface)} />
-        <StatRow icon="alert-circle-outline" label="Unpaid Jobs" value={stats.unpaidCount.toString()} color={stats.unpaidCount > 0 ? COLORS.danger : COLORS.success} />
+        <StatRow icon="briefcase-outline" label={t('total_jobs')} value={stats.totalJobs.toString()} />
+        <StatRow icon="cash-outline" label={t('total_earned')} value={fmt(stats.totalEarned)} />
+        <StatRow icon="checkmark-circle-outline" label={t('total_paid')} value={fmt(stats.totalPaid)} color={COLORS.success} />
+        <StatRow icon="time-outline" label={t('still_owed')} value={fmt(stats.totalUnpaid)} color={stats.totalUnpaid > 0 ? COLORS.danger : COLORS.success} />
+        <StatRow icon="resize-outline" label={t('total_surface')} value={formatSurface(stats.totalSurface)} />
+        <StatRow icon="alert-circle-outline" label={t('unpaid_jobs_label')} value={stats.unpaidCount.toString()} color={stats.unpaidCount > 0 ? COLORS.danger : COLORS.success} />
       </View>
 
       {/* Settings */}
       <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
         <Ionicons name="settings-outline" size={20} color={COLORS.primary} />
-        <Text style={styles.settingsBtnText}>Currency & Settings</Text>
+        <Text style={styles.settingsBtnText}>{t('currency_settings')}</Text>
         <Ionicons name="chevron-forward" size={16} color={COLORS.gray} style={{ marginLeft: 'auto' }} />
       </TouchableOpacity>
 
       {/* Sign Out */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={styles.logoutText}>{t('sign_out')}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.version}>Harvest Tracker v1.0</Text>
+      <Text style={styles.version}>{t('version')}</Text>
     </ScrollView>
   );
 }

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 import { formatSurface, formatDate, groupByClient, getPaymentStatus, getAmountPaid, getRemainingAmount } from '../utils/helpers';
 
 export default function ClientsScreen({ navigation }) {
@@ -16,6 +16,7 @@ export default function ClientsScreen({ navigation }) {
   const [expanded, setExpanded] = useState({});
   const insets = useSafeAreaInsets();
   const fmt = useCurrency();
+  const t = useTranslation();
 
   useEffect(() => { loadJobs(); }, []);
 
@@ -33,8 +34,8 @@ export default function ClientsScreen({ navigation }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.headerTitle}>Clients</Text>
-        <Text style={styles.headerCount}>{clients.length} total</Text>
+        <Text style={styles.headerTitle}>{t('clients')}</Text>
+        <Text style={styles.headerCount}>{clients.length} {t('total')}</Text>
       </View>
 
       {/* Summary Banner */}
@@ -42,14 +43,14 @@ export default function ClientsScreen({ navigation }) {
         <View style={styles.summaryBanner}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryValue}>{unpaidClients.length}</Text>
-            <Text style={styles.summaryLabel}>Clients with debt</Text>
+            <Text style={styles.summaryLabel}>{t('clients_with_debt')}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryValue}>
               {fmt(unpaidClients.reduce((s, c) => s + (c.totalAmount - c.paidAmount), 0))}
             </Text>
-            <Text style={styles.summaryLabel}>Total owed to you</Text>
+            <Text style={styles.summaryLabel}>{t('total_owed')}</Text>
           </View>
         </View>
       )}
@@ -59,7 +60,7 @@ export default function ClientsScreen({ navigation }) {
         <Ionicons name="search-outline" size={18} color={COLORS.gray} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search clients..."
+          placeholder={t('search_clients')}
           placeholderTextColor={COLORS.gray}
           value={search}
           onChangeText={setSearch}
@@ -74,7 +75,7 @@ export default function ClientsScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={52} color={COLORS.grayBorder} />
-            <Text style={styles.emptyText}>No clients yet</Text>
+            <Text style={styles.emptyText}>{t('no_clients')}</Text>
           </View>
         }
         renderItem={({ item: client }) => {
@@ -101,9 +102,9 @@ export default function ClientsScreen({ navigation }) {
                   <View style={styles.clientRight}>
                     <Text style={styles.clientTotal}>{fmt(client.totalAmount)}</Text>
                     {hasDebt ? (
-                      <Text style={styles.owes}>owes {fmt(owes)}</Text>
+                      <Text style={styles.owes}>{t('owes')} {fmt(owes)}</Text>
                     ) : (
-                      <Text style={styles.allPaid}>All paid</Text>
+                      <Text style={styles.allPaid}>{t('all_paid')}</Text>
                     )}
                   </View>
                   <Ionicons
@@ -127,9 +128,9 @@ export default function ClientsScreen({ navigation }) {
                 />
               </View>
               <View style={styles.progressLabels}>
-                <Text style={styles.progressLabel}>Paid: {fmt(client.paidAmount)}</Text>
+                <Text style={styles.progressLabel}>{t('paid_label')}: {fmt(client.paidAmount)}</Text>
                 <Text style={styles.progressLabel}>
-                  {hasDebt ? `Remaining: ${fmt(owes)}` : 'Fully paid ✓'}
+                  {hasDebt ? `${t('remaining')}: ${fmt(owes)}` : t('fully_paid_check')}
                 </Text>
               </View>
 
@@ -151,7 +152,7 @@ export default function ClientsScreen({ navigation }) {
                         <Text style={styles.jobRowDate}>{formatDate(job.date)}</Text>
                         {job.locationName ? <Text style={styles.jobRowLocation}>{job.locationName}</Text> : null}
                         <Text style={styles.jobRowSurface}>{formatSurface(job.surface)}</Text>
-                        {st === 'partial' && <Text style={styles.partialText}>Remaining: {fmt(rem)}</Text>}
+                        {st === 'partial' && <Text style={styles.partialText}>{t('remaining')}: {fmt(rem)}</Text>}
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.jobRowPrice}>{fmt(job.totalPrice)}</Text>
@@ -160,10 +161,10 @@ export default function ClientsScreen({ navigation }) {
                             style={styles.payNowBtn}
                             onPress={() => markPaid(job.id)}
                           >
-                            <Text style={styles.payNowText}>{st === 'partial' ? `Pay ${fmt(rem)}` : 'Pay now'}</Text>
+                            <Text style={styles.payNowText}>{st === 'partial' ? `${t('pay_amount')} ${fmt(rem)}` : t('pay_now')}</Text>
                           </TouchableOpacity>
                         )}
-                        {st === 'paid' && <Text style={styles.paidCheck}>✓ Paid</Text>}
+                        {st === 'paid' && <Text style={styles.paidCheck}>✓ {t('paid')}</Text>}
                       </View>
                     </TouchableOpacity>
                     );

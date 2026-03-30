@@ -6,18 +6,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useData } from '../context/DataContext';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
 import { formatSurface } from '../utils/helpers';
 import DatePicker from '../components/DatePicker';
 
-const FILTERS = [
-  { key: 'week', label: 'This Week' },
-  { key: 'month', label: 'This Month' },
-  { key: 'year', label: 'This Year' },
-  { key: 'all', label: 'All Time' },
-  { key: 'custom', label: 'Custom' },
-];
 
 function fmtDate(date) {
   if (!date) return '—';
@@ -28,6 +21,15 @@ export default function StatsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { jobs, loadJobs } = useData();
   const fmt = useCurrency();
+  const t = useTranslation();
+
+  const FILTERS = [
+    { key: 'week', label: t('this_week') },
+    { key: 'month', label: t('this_month') },
+    { key: 'year', label: t('this_year') },
+    { key: 'all', label: t('all_time') },
+    { key: 'custom', label: t('custom') },
+  ];
 
   const [filter, setFilter] = useState('month');
   const [fromDate, setFromDate] = useState(null);
@@ -111,7 +113,7 @@ export default function StatsScreen({ navigation }) {
     <View style={styles.container}>
       {/* Fixed Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.headerTitle}>Statistics</Text>
+        <Text style={styles.headerTitle}>{t('statistics')}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={20} color={COLORS.white} />
@@ -151,9 +153,9 @@ export default function StatsScreen({ navigation }) {
             >
               <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
               <View style={{ marginLeft: 8 }}>
-                <Text style={styles.dateFieldLabel}>From</Text>
+                <Text style={styles.dateFieldLabel}>{t('from')}</Text>
                 <Text style={[styles.dateFieldValue, !fromDate && { color: COLORS.gray }]}>
-                  {fromDate ? fmtDate(fromDate) : 'Select date'}
+                  {fromDate ? fmtDate(fromDate) : t('select_date')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -168,9 +170,9 @@ export default function StatsScreen({ navigation }) {
             >
               <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
               <View style={{ marginLeft: 8 }}>
-                <Text style={styles.dateFieldLabel}>To</Text>
+                <Text style={styles.dateFieldLabel}>{t('to')}</Text>
                 <Text style={[styles.dateFieldValue, !toDate && { color: COLORS.gray }]}>
-                  {toDate ? fmtDate(toDate) : 'Select date'}
+                  {toDate ? fmtDate(toDate) : t('select_date')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -193,32 +195,32 @@ export default function StatsScreen({ navigation }) {
 
         {/* Summary Grid */}
         <View style={styles.grid}>
-          <StatCard icon="cash-outline"           label="Total Earned"  value={fmt(totalEarned)}              color={COLORS.primary} />
-          <StatCard icon="checkmark-circle-outline" label="Collected"   value={fmt(totalPaid)}                color={COLORS.success} />
-          <StatCard icon="time-outline"            label="Pending"      value={fmt(totalUnpaid)}              color={totalUnpaid > 0 ? COLORS.danger : COLORS.success} />
-          <StatCard icon="resize-outline"          label="Total Area"   value={formatSurface(totalArea)}      color="#1565C0" />
-          <StatCard icon="briefcase-outline"       label="Jobs Done"    value={String(filteredJobs.length)}   color="#6A1B9A" />
-          <StatCard icon="alert-circle-outline"    label="Unpaid Jobs"  value={String(unpaidCount)}           color={unpaidCount > 0 ? COLORS.danger : COLORS.success} />
+          <StatCard icon="cash-outline"           label={t('total_earned')}  value={fmt(totalEarned)}              color={COLORS.primary} />
+          <StatCard icon="checkmark-circle-outline" label={t('collected')}   value={fmt(totalPaid)}                color={COLORS.success} />
+          <StatCard icon="time-outline"            label={t('pending')}      value={fmt(totalUnpaid)}              color={totalUnpaid > 0 ? COLORS.danger : COLORS.success} />
+          <StatCard icon="resize-outline"          label={t('total_area')}   value={formatSurface(totalArea)}      color="#1565C0" />
+          <StatCard icon="briefcase-outline"       label={t('jobs_done')}    value={String(filteredJobs.length)}   color="#6A1B9A" />
+          <StatCard icon="alert-circle-outline"    label={t('unpaid_jobs')}  value={String(unpaidCount)}           color={unpaidCount > 0 ? COLORS.danger : COLORS.success} />
         </View>
 
         {/* Payment Progress */}
         {totalEarned > 0 && (
-          <Section title="Payment Progress">
+          <Section title={t('payment_progress')}>
             <View style={styles.progressCard}>
               <View style={styles.progressLabelRow}>
                 <Text style={[styles.progressLabel, { color: COLORS.success }]}>
-                  {fmt(totalPaid)} paid
+                  {fmt(totalPaid)} {t('paid_label_prog')}
                 </Text>
                 <Text style={[styles.progressLabel, { color: totalUnpaid > 0 ? COLORS.danger : COLORS.success }]}>
-                  {totalUnpaid > 0 ? `${fmt(totalUnpaid)} remaining` : 'Fully collected ✓'}
+                  {totalUnpaid > 0 ? `${fmt(totalUnpaid)} ${t('remaining_prog')}` : t('fully_collected')}
                 </Text>
               </View>
               <View style={styles.progressBg}>
                 <View style={[styles.progressFill, { width: `${(totalPaid / totalEarned) * 100}%` }]} />
               </View>
               <Text style={styles.progressPercent}>
-                {Math.round((totalPaid / totalEarned) * 100)}% collected
-                {'  ·  '}{paidCount} paid / {unpaidCount} pending
+                {Math.round((totalPaid / totalEarned) * 100)}% {t('collected_pct')}
+                {'  ·  '}{paidCount} {t('paid_label_prog')} / {unpaidCount} {t('pending_label')}
               </Text>
             </View>
           </Section>
@@ -226,7 +228,7 @@ export default function StatsScreen({ navigation }) {
 
         {/* Monthly Chart */}
         {monthlyData.length > 1 && (
-          <Section title="Earnings by Month">
+          <Section title={t('earnings_by_month')}>
             <View style={styles.chartCard}>
               {monthlyData.map((m) => (
                 <View key={m.key} style={styles.barRow}>
@@ -249,7 +251,7 @@ export default function StatsScreen({ navigation }) {
 
         {/* Top Clients */}
         {clientData.length > 0 && (
-          <Section title={`Top Clients${clientData.length < filteredJobs.length ? ` (top ${clientData.length})` : ''}`}>
+          <Section title={`${t('top_clients')}${clientData.length < filteredJobs.length ? ` (top ${clientData.length})` : ''}`}>
             <View style={styles.clientCard}>
               {clientData.map((c, i) => {
                 const owes = c.earned - c.paid;
@@ -267,8 +269,8 @@ export default function StatsScreen({ navigation }) {
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={styles.clientEarned}>{fmt(c.earned)}</Text>
                       {owes > 0.01
-                        ? <Text style={styles.clientOwes}>owes {fmt(owes)}</Text>
-                        : <Text style={styles.clientPaid}>all paid ✓</Text>
+                        ? <Text style={styles.clientOwes}>{t('owes')} {fmt(owes)}</Text>
+                        : <Text style={styles.clientPaid}>{t('all_paid_check')}</Text>
                       }
                     </View>
                   </View>
@@ -281,8 +283,8 @@ export default function StatsScreen({ navigation }) {
         {filteredJobs.length === 0 && (
           <View style={styles.empty}>
             <Ionicons name="bar-chart-outline" size={56} color={COLORS.grayBorder} />
-            <Text style={styles.emptyTitle}>No data</Text>
-            <Text style={styles.emptyText}>No jobs found for this period</Text>
+            <Text style={styles.emptyTitle}>{t('no_data')}</Text>
+            <Text style={styles.emptyText}>{t('no_jobs_period')}</Text>
           </View>
         )}
       </ScrollView>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Modal, ScrollView, Platform,
@@ -10,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../context/DataContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
 import { formatSurface, formatDate, getPolygonCenter, getPaymentStatus, getRemainingAmount } from '../utils/helpers';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 
 const INITIAL_REGION = {
   latitude: 42.6629,
@@ -29,16 +30,27 @@ export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { jobs, loadJobs } = useData();
   const fmt = useCurrency();
+  const t = useTranslation();
   const [selectedJob, setSelectedJob] = useState(null);
   const [overlappingJobs, setOverlappingJobs] = useState([]);
   const [filter, setFilter] = useState('all');
   const mapRef = useRef(null);
+  const userLocationRef = useRef(null);
+  const mapReadyRef = useRef(false);
   // Prevents MapView's onPress from clearing selection when a polygon was just tapped
   const polygonPressedRef = useRef(false);
 
+  const animateToUserLocation = (coords) => {
+    mapRef.current?.animateToRegion({
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    }, 600);
+  };
+
+  // Fetch location once on mount
   useEffect(() => {
-    loadJobs();
-    let timer;
     let cancelled = false;
     (async () => {
       try {
@@ -46,29 +58,38 @@ export default function MapScreen({ navigation }) {
         if (status !== 'granted' || cancelled) return;
         const loc = await Location.getCurrentPositionAsync({});
         if (cancelled) return;
-        timer = setTimeout(() => {
-          mapRef.current?.animateToRegion({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
-          }, 600);
-        }, 300);
+        const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+        userLocationRef.current = coords;
+        if (mapReadyRef.current) {
+          animateToUserLocation(coords);
+        }
       } catch (_) {}
     })();
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => { cancelled = true; };
   }, []);
 
-  const goToCurrentLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') return;
-    const loc = await Location.getCurrentPositionAsync({});
-    mapRef.current?.animateToRegion({
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    }, 600);
+  // Re-animate to current location every time the screen is focused (tab revisits)
+  useFocusEffect(
+    useCallback(() => {
+      loadJobs();
+      if (userLocationRef.current) {
+        const timer = setTimeout(() => animateToUserLocation(userLocationRef.current), 100);
+        return () => clearTimeout(timer);
+      }
+    }, [])
+  );
+
+  const handleMapReady = () => {
+    mapReadyRef.current = true;
+    if (userLocationRef.current) {
+      animateToUserLocation(userLocationRef.current);
+    }
+  };
+
+  const goToCurrentLocation = () => {
+    if (userLocationRef.current) {
+      animateToUserLocation(userLocationRef.current);
+    }
   };
 
   const filteredJobs = useMemo(() => jobs.filter((j) => {
@@ -143,6 +164,7 @@ export default function MapScreen({ navigation }) {
         mapType="satellite"
         showsUserLocation={true}
         showsMyLocationButton={false}
+        onMapReady={handleMapReady}
         onPress={() => {
           if (polygonPressedRef.current) {
             polygonPressedRef.current = false;
@@ -197,7 +219,7 @@ export default function MapScreen({ navigation }) {
             onPress={() => setFilter(f)}
           >
             <Text style={[styles.pillText, filter === f && styles.pillTextActive]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {t(f === 'all' ? 'all' : f === 'paid' ? 'paid' : 'unpaid')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -217,11 +239,11 @@ export default function MapScreen({ navigation }) {
       </View>
 
       {/* Legend — top right */}
-      <View style={[styles.legend, { top: insets.top + SPACING.sm, right: SPACING.md }]}>
+      <View style={[styles.legend, { bottom: insets.bottom + 16, left: SPACING.md }]}>
         {[
-          { key: 'paid',   label: 'Paid' },
-          { key: 'unpaid', label: 'Unpaid' },
-          { key: 'mixed',  label: 'Mixed' },
+          { key: 'paid',   label: t('paid') },
+          { key: 'unpaid', label: t('unpaid') },
+          { key: 'mixed',  label: t('mixed') },
         ].map(({ key, label }) => (
           <View key={key} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: STATUS_COLOR[key] }]} />
@@ -242,7 +264,7 @@ export default function MapScreen({ navigation }) {
         const status = getPaymentStatus(selectedJob);
         const remaining = getRemainingAmount(selectedJob);
         const statusColor = status === 'paid' ? COLORS.success : status === 'partial' ? COLORS.secondary : COLORS.danger;
-        const statusLabel = status === 'paid' ? 'Paid' : status === 'partial' ? 'Partial' : 'Unpaid';
+        const statusLabel = status === 'paid' ? t('paid') : status === 'partial' ? t('partial') : t('unpaid');
         return (
           <View style={styles.jobCard}>
             {/* Header row */}
@@ -272,7 +294,7 @@ export default function MapScreen({ navigation }) {
             ) : null}
 
             {status === 'partial' && (
-              <Text style={styles.jobCardRemaining}>Remaining: {fmt(remaining)}</Text>
+              <Text style={styles.jobCardRemaining}>{t('remaining')}: {fmt(remaining)}</Text>
             )}
 
             {/* Actions row */}
@@ -293,13 +315,13 @@ export default function MapScreen({ navigation }) {
                 }}
               >
                 <Ionicons name="add-circle-outline" size={15} color={COLORS.primary} />
-                <Text style={styles.newJobBtnText}>New job</Text>
+                <Text style={styles.newJobBtnText}>{t('new_job_here')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.openBtn}
                 onPress={() => { setSelectedJob(null); navigation.navigate('JobDetail', { jobId: selectedJob.id }); }}
               >
-                <Text style={styles.openBtnText}>Open Job</Text>
+                <Text style={styles.openBtnText}>{t('open_job')}</Text>
                 <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
               </TouchableOpacity>
             </View>
@@ -311,7 +333,7 @@ export default function MapScreen({ navigation }) {
       {overlappingJobs.length > 0 && (
         <View style={styles.overlapCard}>
           <View style={styles.overlapHeader}>
-            <Text style={styles.overlapTitle}>{overlappingJobs.length} jobs at this field</Text>
+            <Text style={styles.overlapTitle}>{overlappingJobs.length} {t('jobs_at_field')}</Text>
             <TouchableOpacity onPress={() => setOverlappingJobs([])}>
               <Ionicons name="close" size={20} color={COLORS.gray} />
             </TouchableOpacity>
@@ -353,7 +375,7 @@ export default function MapScreen({ navigation }) {
             }}
           >
             <Ionicons name="add-circle-outline" size={15} color={COLORS.primary} />
-            <Text style={styles.newJobBtnText}>New job at this field</Text>
+            <Text style={styles.newJobBtnText}>{t('new_job_at_field')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -455,12 +477,13 @@ const styles = StyleSheet.create({
   openBtnText: { color: COLORS.white, ...FONTS.bold, fontSize: 14 },
   legend: {
     position: 'absolute',
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: RADIUS.sm,
     paddingVertical: 5,
     paddingHorizontal: 8,
-    gap: 3,
+    gap: 8,
     ...SHADOW.small,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },

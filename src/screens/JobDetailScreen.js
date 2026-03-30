@@ -8,7 +8,7 @@ import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../context/DataContext';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
 import { formatSurface, formatDate, getPolygonCenter, getAmountPaid, getRemainingAmount, getPaymentStatus } from '../utils/helpers';
 
@@ -16,6 +16,7 @@ export default function JobDetailScreen({ route, navigation }) {
   const { jobId } = route.params;
   const { jobs, addPayment, removePayment, markUnpaid, removeJob } = useData();
   const fmt = useCurrency();
+  const t = useTranslation();
   const insets = useSafeAreaInsets();
   const job = jobs.find((j) => j.id === jobId);
 
@@ -24,7 +25,7 @@ export default function JobDetailScreen({ route, navigation }) {
   if (!job) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Job not found</Text>
+        <Text>{t('job_not_found')}</Text>
       </View>
     );
   }
@@ -40,31 +41,31 @@ export default function JobDetailScreen({ route, navigation }) {
   const mapRegion = mapCenter ? { ...mapCenter, latitudeDelta: 0.01, longitudeDelta: 0.01 } : null;
 
   const handleDelete = () => {
-    Alert.alert('Delete Job', 'This will permanently delete this job and all its payment records.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await removeJob(jobId); navigation.goBack(); } },
+    Alert.alert(t('delete_job'), t('delete_job_msg'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('delete'), style: 'destructive', onPress: async () => { await removeJob(jobId); navigation.goBack(); } },
     ]);
   };
 
   const handleRemovePayment = (paymentId) => {
-    Alert.alert('Remove Payment', 'Remove this payment record?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removePayment(jobId, paymentId) },
+    Alert.alert(t('remove_payment'), t('remove_payment_msg'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('remove'), style: 'destructive', onPress: () => removePayment(jobId, paymentId) },
     ]);
   };
 
   const handleResetPayments = () => {
-    Alert.alert('Reset Payments', 'Remove all payment records for this job?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset', style: 'destructive', onPress: () => markUnpaid(jobId) },
+    Alert.alert(t('reset_payments'), t('reset_payments_msg'), [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('reset'), style: 'destructive', onPress: () => markUnpaid(jobId) },
     ]);
   };
 
   // Status colors & labels
   const statusConfig = {
-    paid:    { color: COLORS.success,   bg: COLORS.successLight,  label: 'Fully Paid',      icon: 'checkmark-circle' },
-    partial: { color: COLORS.secondary, bg: '#FFF8E1',             label: 'Partially Paid',  icon: 'ellipse-outline' },
-    unpaid:  { color: COLORS.danger,    bg: COLORS.dangerLight,    label: 'Not Paid',        icon: 'time-outline' },
+    paid:    { color: COLORS.success,   bg: COLORS.successLight,  label: t('fully_paid'),      icon: 'checkmark-circle' },
+    partial: { color: COLORS.secondary, bg: '#FFF8E1',             label: t('partially_paid'),  icon: 'ellipse-outline' },
+    unpaid:  { color: COLORS.danger,    bg: COLORS.dangerLight,    label: t('not_paid'),        icon: 'time-outline' },
   };
   const sc = statusConfig[status];
 
@@ -110,7 +111,7 @@ export default function JobDetailScreen({ route, navigation }) {
         {/* Payment Progress Bar */}
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Payment Progress</Text>
+            <Text style={styles.progressTitle}>{t('payment_progress')}</Text>
             <Text style={styles.progressPercent}>{Math.round(paidPercent)}%</Text>
           </View>
           <View style={styles.progressBg}>
@@ -120,20 +121,20 @@ export default function JobDetailScreen({ route, navigation }) {
             }]} />
           </View>
           <View style={styles.progressAmounts}>
-            <Text style={styles.progressPaid}>Collected: {fmt(amountPaid)}</Text>
+            <Text style={styles.progressPaid}>{t('collected')}: {fmt(amountPaid)}</Text>
             <Text style={[styles.progressRemaining, { color: remaining > 0 ? COLORS.danger : COLORS.success }]}>
-              {remaining > 0 ? `Remaining: ${fmt(remaining)}` : 'Fully collected ✓'}
+              {remaining > 0 ? `${t('remaining')}: ${fmt(remaining)}` : t('fully_collected')}
             </Text>
           </View>
         </View>
 
         {/* Job Info Cards */}
         <View style={styles.infoGrid}>
-          <InfoCard icon="cash-outline"    label="Total Price" value={fmt(job.totalPrice)}       color={COLORS.primary} />
-          <InfoCard icon="resize-outline"  label="Surface"     value={formatSurface(job.surface)} color="#1565C0" />
-          <InfoCard icon="calendar-outline" label="Date"       value={formatDate(job.date)}       color="#E65100" />
+          <InfoCard icon="cash-outline"    label={t('total_earned')} value={fmt(job.totalPrice)}       color={COLORS.primary} />
+          <InfoCard icon="resize-outline"  label={t('surface')}     value={formatSurface(job.surface)} color="#1565C0" />
+          <InfoCard icon="calendar-outline" label={t('date')}       value={formatDate(job.date)}       color="#E65100" />
           {job.pricePerM2 && (
-            <InfoCard icon="calculator-outline" label="Per m²" value={fmt(job.pricePerM2)}       color="#6A1B9A" />
+            <InfoCard icon="calculator-outline" label={t('price_per_m2_label')} value={fmt(job.pricePerM2)} color="#6A1B9A" />
           )}
         </View>
 
@@ -172,11 +173,11 @@ export default function JobDetailScreen({ route, navigation }) {
         {/* Payment History */}
         <View style={styles.section}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Payment History</Text>
+            <Text style={styles.sectionTitle}>{t('payment_history')}</Text>
             {status !== 'paid' && (
               <TouchableOpacity style={styles.addPaySmallBtn} onPress={() => setShowPayModal(true)}>
                 <Ionicons name="add" size={16} color={COLORS.primary} />
-                <Text style={styles.addPaySmallText}>Add payment</Text>
+                <Text style={styles.addPaySmallText}>{t('add_payment')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -184,9 +185,9 @@ export default function JobDetailScreen({ route, navigation }) {
           {payments.length === 0 ? (
             <View style={styles.noPayments}>
               <Ionicons name="wallet-outline" size={32} color={COLORS.grayBorder} />
-              <Text style={styles.noPaymentsText}>No payments recorded yet</Text>
+              <Text style={styles.noPaymentsText}>{t('no_payments')}</Text>
               <TouchableOpacity style={styles.firstPayBtn} onPress={() => setShowPayModal(true)}>
-                <Text style={styles.firstPayText}>Record first payment</Text>
+                <Text style={styles.firstPayText}>{t('add_payment')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -208,32 +209,33 @@ export default function JobDetailScreen({ route, navigation }) {
               ))}
               {/* Summary row */}
               <View style={styles.paymentSummary}>
-                <Text style={styles.paymentSummaryLabel}>Total collected</Text>
+                <Text style={styles.paymentSummaryLabel}>{t('collected')}</Text>
                 <Text style={styles.paymentSummaryValue}>{fmt(amountPaid)} / {fmt(totalPrice)}</Text>
               </View>
             </View>
           )}
         </View>
 
+
         {/* Notes */}
-        {job.notes ? (
-          <View style={styles.notesCard}>
-            <Text style={styles.notesLabel}>Notes</Text>
-            <Text style={styles.notesText}>{job.notes}</Text>
-          </View>
-        ) : null}
+        <View style={styles.notesCard}>
+          <Text style={styles.notesLabel}>{t('notes')}</Text>
+          <Text style={[styles.notesText, !job.notes && { color: COLORS.gray, fontStyle: 'italic' }]}>
+            {job.notes || t('additional_notes')}
+          </Text>
+        </View>
 
         {/* Action Button */}
         {status !== 'paid' && (
           <TouchableOpacity style={styles.mainActionBtn} onPress={() => setShowPayModal(true)}>
             <Ionicons name="cash-outline" size={22} color={COLORS.white} style={{ marginRight: 8 }} />
-            <Text style={styles.mainActionText}>Record Payment</Text>
+            <Text style={styles.mainActionText}>{t('add_payment')}</Text>
           </TouchableOpacity>
         )}
         {status === 'paid' && (
           <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: COLORS.danger }]} onPress={handleResetPayments}>
             <Ionicons name="refresh-outline" size={22} color={COLORS.white} style={{ marginRight: 8 }} />
-            <Text style={styles.mainActionText}>Reset All Payments</Text>
+            <Text style={styles.mainActionText}>{t('reset_payments')}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -257,6 +259,7 @@ export default function JobDetailScreen({ route, navigation }) {
 // ─── Payment Modal ────────────────────────────────────────────────────────────
 
 function PaymentModal({ visible, remaining, totalPrice, fmt, onClose, onConfirm }) {
+  const t = useTranslation();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
@@ -264,11 +267,11 @@ function PaymentModal({ visible, remaining, totalPrice, fmt, onClose, onConfirm 
   const handleConfirm = async () => {
     const val = parseFloat(amount);
     if (!amount || isNaN(val) || val <= 0) {
-      Alert.alert('Invalid amount', 'Please enter a valid payment amount.');
+      Alert.alert(t('error'), t('invalid_amount_msg'));
       return;
     }
     if (val > remaining + 0.001) {
-      Alert.alert('Amount too high', `Maximum remaining is ${fmt(remaining)}`);
+      Alert.alert(t('error'), `Maximum remaining is ${fmt(remaining)}`);
       return;
     }
     setLoading(true);
@@ -289,21 +292,21 @@ function PaymentModal({ visible, remaining, totalPrice, fmt, onClose, onConfirm 
           {/* Handle */}
           <View style={pm.handle} />
 
-          <Text style={pm.title}>Record Payment</Text>
-          <Text style={pm.sub}>Remaining: {fmt(remaining)}  ·  Total: {fmt(totalPrice)}</Text>
+          <Text style={pm.title}>{t('add_payment')}</Text>
+          <Text style={pm.sub}>{t('remaining')}: {fmt(remaining)}  ·  {t('total_earned')}: {fmt(totalPrice)}</Text>
 
           {/* Quick amount buttons */}
           <View style={pm.quickRow}>
             <TouchableOpacity style={pm.quickBtn} onPress={setFull}>
-              <Text style={pm.quickBtnText}>Full {fmt(remaining)}</Text>
+              <Text style={pm.quickBtnText}>{t('pay_full')} {fmt(remaining)}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={pm.quickBtn} onPress={setHalf}>
-              <Text style={pm.quickBtnText}>Half {fmt(remaining / 2)}</Text>
+              <Text style={pm.quickBtnText}>{t('half')} {fmt(remaining / 2)}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Amount input */}
-          <Text style={pm.label}>Amount *</Text>
+          <Text style={pm.label}>{t('payment_amount')}</Text>
           <View style={pm.amountRow}>
             <View style={pm.amountBox}>
               <TextInput
@@ -319,11 +322,11 @@ function PaymentModal({ visible, remaining, totalPrice, fmt, onClose, onConfirm 
           </View>
 
           {/* Note input */}
-          <Text style={pm.label}>Note (optional)</Text>
+          <Text style={pm.label}>{t('payment_note_ph')}</Text>
           <View style={pm.noteBox}>
             <TextInput
               style={pm.noteInput}
-              placeholder="e.g. Cash payment, Bank transfer…"
+              placeholder={t('payment_note_ph')}
               placeholderTextColor={COLORS.gray}
               value={note}
               onChangeText={setNote}
@@ -333,12 +336,12 @@ function PaymentModal({ visible, remaining, totalPrice, fmt, onClose, onConfirm 
           {/* Buttons */}
           <View style={pm.btnRow}>
             <TouchableOpacity style={pm.cancelBtn} onPress={onClose}>
-              <Text style={pm.cancelText}>Cancel</Text>
+              <Text style={pm.cancelText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={pm.confirmBtn} onPress={handleConfirm} disabled={loading}>
               {loading
                 ? <ActivityIndicator color={COLORS.white} />
-                : <Text style={pm.confirmText}>Save Payment</Text>}
+                : <Text style={pm.confirmText}>{t('confirm_payment')}</Text>}
             </TouchableOpacity>
           </View>
         </View>

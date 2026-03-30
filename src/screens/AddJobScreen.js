@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../context/DataContext';
 import { groupByClient } from '../utils/helpers';
-import { useSettings } from '../context/SettingsContext';
+import { useSettings, useTranslation } from '../context/SettingsContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
 import { generateId, calculatePolygonArea, formatSurface } from '../utils/helpers';
 import DatePicker from '../components/DatePicker';
@@ -23,6 +23,7 @@ const INITIAL_REGION = {
 export default function AddJobScreen({ navigation, route }) {
   const { addJob, jobs, fields, loadFields, addField, removeField } = useData();
   const { settings } = useSettings();
+  const t = useTranslation();
   const insets = useSafeAreaInsets();
   const currencySymbol = settings?.currency?.symbol ?? '€';
 
@@ -117,11 +118,11 @@ export default function AddJobScreen({ navigation, route }) {
 
   const handleDeleteField = (field) => {
     Alert.alert(
-      'Delete Field',
+      t('delete'),
       `Remove "${field.locationName || 'this field'}" from ${field.clientName}?`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => removeField(field.id) },
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: () => removeField(field.id) },
       ],
     );
   };
@@ -181,9 +182,9 @@ export default function AddJobScreen({ navigation, route }) {
     d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const handleSave = async () => {
-    if (!clientName.trim()) { Alert.alert('Missing', 'Please enter client name'); return; }
-    if (!surface || isNaN(parseFloat(surface))) { Alert.alert('Missing', 'Please enter surface area'); return; }
-    if (!totalPrice || isNaN(parseFloat(totalPrice))) { Alert.alert('Missing', 'Please enter total price'); return; }
+    if (!clientName.trim()) { Alert.alert(t('missing_field'), t('enter_client')); return; }
+    if (!surface || isNaN(parseFloat(surface))) { Alert.alert(t('missing_field'), t('enter_surface')); return; }
+    if (!totalPrice || isNaN(parseFloat(totalPrice))) { Alert.alert(t('missing_field'), t('enter_price')); return; }
     setSaving(true);
     try {
       await addJob({
@@ -217,13 +218,13 @@ export default function AddJobScreen({ navigation, route }) {
       {/* Compact Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t('cancel')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Job</Text>
+        <Text style={styles.headerTitle}>{t('new_job_title')}</Text>
         <TouchableOpacity onPress={handleSave} style={styles.saveBtn} disabled={saving}>
           {saving
             ? <ActivityIndicator size="small" color={COLORS.primary} />
-            : <Text style={styles.saveBtnText}>Save</Text>}
+            : <Text style={styles.saveBtnText}>{t('save')}</Text>}
         </TouchableOpacity>
       </View>
 
@@ -240,7 +241,7 @@ export default function AddJobScreen({ navigation, route }) {
           showsVerticalScrollIndicator={false}
         >
           {/* MAP */}
-          <FormCard title="Field Location" noPad>
+          <FormCard title={t('field_location')} noPad>
             <TouchableOpacity
               style={styles.mapPreview}
               onPress={() => setShowMapPicker(true)}
@@ -273,7 +274,7 @@ export default function AddJobScreen({ navigation, route }) {
               ) : (
                 <View style={styles.mapPlaceholder}>
                   <Ionicons name="map-outline" size={36} color={COLORS.gray} />
-                  <Text style={styles.mapPlaceholderText}>Tap to set field location</Text>
+                  <Text style={styles.mapPlaceholderText}>{t('tap_to_set_location')}</Text>
                 </View>
               )}
               {/* Overlay button */}
@@ -281,8 +282,8 @@ export default function AddJobScreen({ navigation, route }) {
                 <Ionicons name={polygonPoints.length >= 3 ? 'create-outline' : 'add-circle-outline'} size={16} color={COLORS.white} />
                 <Text style={styles.mapOverlayText}>
                   {polygonPoints.length >= 3
-                    ? `Edit · ${formatSurface(calculatedArea)}`
-                    : markerLocation ? 'Edit location' : 'Open map'}
+                    ? `${t('edit_surface')} · ${formatSurface(calculatedArea)}`
+                    : markerLocation ? t('edit_location') : t('open_map')}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -292,7 +293,7 @@ export default function AddJobScreen({ navigation, route }) {
               <View style={styles.savedFieldsSection}>
                 <View style={styles.savedFieldsHeader}>
                   <Ionicons name="bookmark-outline" size={13} color={COLORS.primary} />
-                  <Text style={styles.savedFieldsTitle}>Saved fields for {clientName.trim()}</Text>
+                  <Text style={styles.savedFieldsTitle}>{t('saved_fields_for')} {clientName.trim()}</Text>
                 </View>
                 {clientFields.map((f) => (
                   <View key={f.id} style={styles.savedFieldRow}>
@@ -318,21 +319,21 @@ export default function AddJobScreen({ navigation, route }) {
             {polygonPoints.length >= 3 && !fieldSaved && clientName.trim().length > 0 && (
               <TouchableOpacity style={styles.saveFieldBtn} onPress={handleSaveField}>
                 <Ionicons name="bookmark" size={15} color={COLORS.primary} />
-                <Text style={styles.saveFieldBtnText}>Save this field for future jobs</Text>
+                <Text style={styles.saveFieldBtnText}>{t('save_field_btn')}</Text>
               </TouchableOpacity>
             )}
           </FormCard>
 
           {/* JOB DETAILS */}
-          <FormCard title="Job Details" noPad>
+          <FormCard title={t('job_details')} noPad>
             {/* Client name with autocomplete */}
             <FieldRow icon="person-outline">
               <TextInput
                 style={styles.input}
-                placeholder="Client name *"
+                placeholder={t('client_name_placeholder')}
                 placeholderTextColor={COLORS.gray}
                 value={clientName}
-                onChangeText={(t) => { setClientName(t); setShowSuggestions(true); }}
+                onChangeText={(val) => { setClientName(val); setShowSuggestions(true); }}
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 autoCapitalize="words"
@@ -364,7 +365,7 @@ export default function AddJobScreen({ navigation, route }) {
             <FieldRow icon="location-outline" alignTop last>
               <TextInput
                 style={[styles.input, { height: 70, textAlignVertical: 'top', paddingTop: 10 }]}
-                placeholder="Location name (e.g. North Field, Village Road...)"
+                placeholder={t('location_name_placeholder')}
                 placeholderTextColor={COLORS.gray}
                 value={locationName}
                 onChangeText={setLocationName}
@@ -374,11 +375,11 @@ export default function AddJobScreen({ navigation, route }) {
           </FormCard>
 
           {/* PRICING */}
-          <FormCard title="Surface & Pricing" noPad>
+          <FormCard title={t('surface_pricing')} noPad>
             <FieldRow icon="resize-outline">
               <TextInput
                 style={styles.input}
-                placeholder="Surface area *"
+                placeholder={t('surface_area')}
                 placeholderTextColor={COLORS.gray}
                 value={surface}
                 onChangeText={setSurface}
@@ -391,7 +392,7 @@ export default function AddJobScreen({ navigation, route }) {
             <FieldRow icon="calculator-outline">
               <TextInput
                 style={styles.input}
-                placeholder={`Price per m² (optional)`}
+                placeholder={t('price_per_m2')}
                 placeholderTextColor={COLORS.gray}
                 value={pricePerM2}
                 onChangeText={setPricePerM2}
@@ -403,7 +404,7 @@ export default function AddJobScreen({ navigation, route }) {
 
             {/* Total Price */}
             <View style={styles.totalBox}>
-              <Text style={styles.totalLabel}>Total Price *</Text>
+              <Text style={styles.totalLabel}>{t('total_price_label')}</Text>
               <View style={styles.totalRow}>
                 <Text style={styles.totalSymbol}>{currencySymbol}</Text>
                 <TextInput
@@ -417,20 +418,20 @@ export default function AddJobScreen({ navigation, route }) {
                 />
               </View>
               {surface && pricePerM2 ? (
-                <Text style={styles.totalNote}>{surface} m² × {currencySymbol}{pricePerM2} = auto-calculated</Text>
+                <Text style={styles.totalNote}>{surface} m² × {currencySymbol}{pricePerM2} = {t('auto_calculated')}</Text>
               ) : null}
             </View>
           </FormCard>
 
           {/* PAYMENT STATUS */}
-          <FormCard title="Payment Status" noPad>
+          <FormCard title={t('payment_status')} noPad>
             <View style={[styles.paidRow, { borderBottomWidth: 0 }]}>
               <View style={[styles.paidIcon, { backgroundColor: paid ? COLORS.successLight : COLORS.dangerLight }]}>
                 <Ionicons name={paid ? 'checkmark-circle' : 'time-outline'} size={22} color={paid ? COLORS.success : COLORS.danger} />
               </View>
               <View style={{ flex: 1, marginLeft: SPACING.sm }}>
-                <Text style={styles.paidLabel}>{paid ? 'Payment Received' : 'Awaiting Payment'}</Text>
-                <Text style={styles.paidSub}>{paid ? 'Client has paid in full' : 'Mark paid when received'}</Text>
+                <Text style={styles.paidLabel}>{paid ? t('payment_received') : t('awaiting_payment')}</Text>
+                <Text style={styles.paidSub}>{paid ? t('client_paid_full') : t('mark_paid_received')}</Text>
               </View>
               <Switch
                 value={paid}
@@ -442,11 +443,11 @@ export default function AddJobScreen({ navigation, route }) {
           </FormCard>
 
           {/* NOTES */}
-          <FormCard title="Notes" noPad>
+          <FormCard title={t('notes')} noPad>
             <FieldRow icon="document-text-outline" alignTop last>
               <TextInput
                 style={[styles.input, { height: 80, textAlignVertical: 'top', paddingTop: 6 }]}
-                placeholder="Additional notes (optional)…"
+                placeholder={t('additional_notes')}
                 placeholderTextColor={COLORS.gray}
                 value={notes}
                 onChangeText={setNotes}
@@ -461,7 +462,7 @@ export default function AddJobScreen({ navigation, route }) {
               ? <ActivityIndicator color={COLORS.white} />
               : <>
                   <Ionicons name="checkmark-circle" size={22} color={COLORS.white} style={{ marginRight: 8 }} />
-                  <Text style={styles.saveFullBtnText}>Save Job</Text>
+                  <Text style={styles.saveFullBtnText}>{t('save')}</Text>
                 </>}
           </TouchableOpacity>
         </ScrollView>
@@ -471,11 +472,11 @@ export default function AddJobScreen({ navigation, route }) {
       <Modal visible={showSaveFieldModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Save Field</Text>
-            <Text style={styles.modalSub}>Name this field so you can reuse it for {clientName.trim()}</Text>
+            <Text style={styles.modalTitle}>{t('save_field_title')}</Text>
+            <Text style={styles.modalSub}>{t('save_field_sub')} {clientName.trim()}</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="e.g. North plot, Village road..."
+              placeholder={t('field_name_placeholder')}
               placeholderTextColor={COLORS.gray}
               value={newFieldName}
               onChangeText={setNewFieldName}
@@ -485,14 +486,14 @@ export default function AddJobScreen({ navigation, route }) {
             />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowSaveFieldModal(false)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalConfirm, !newFieldName.trim() && { opacity: 0.4 }]}
                 onPress={confirmSaveField}
                 disabled={!newFieldName.trim()}
               >
-                <Text style={styles.modalConfirmText}>Save</Text>
+                <Text style={styles.modalConfirmText}>{t('save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -571,6 +572,7 @@ function FieldRow({ icon, children, alignTop, last }) {
 
 function MapPickerModal({ visible, initialRegion, initialPolygon, initialMarker, onDone, onClose }) {
   const insets = useSafeAreaInsets();
+  const t = useTranslation();
   const mapRef = useRef(null);
   const lastTapRef = useRef(0);
   const [pts, setPts] = useState([]);
@@ -693,12 +695,12 @@ function MapPickerModal({ visible, initialRegion, initialPolygon, initialMarker,
             <Ionicons name="close" size={20} color={COLORS.text} />
           </TouchableOpacity>
           <View style={mp.topCenter}>
-            <Text style={mp.topTitle}>Draw Field</Text>
+            <Text style={mp.topTitle}>{t('draw_field')}</Text>
             <Text style={mp.topSub}>
               {pts.length === 0
-                ? 'Tap map to add points'
+                ? t('tap_map_add')
                 : pts.length < 3
-                  ? `${pts.length} point${pts.length > 1 ? 's' : ''} — need ${3 - pts.length} more`
+                  ? `${pts.length} pt${pts.length > 1 ? 's' : ''} — ${t('pts_need')} ${3 - pts.length} ${t('pts_more')}`
                   : `${pts.length} pts · ${formatSurface(area)}`}
             </Text>
           </View>
@@ -707,7 +709,7 @@ function MapPickerModal({ visible, initialRegion, initialPolygon, initialMarker,
             onPress={handleDone}
             disabled={pts.length < 3}
           >
-            <Text style={mp.doneBtnText}>Done</Text>
+            <Text style={mp.doneBtnText}>{t('done')}</Text>
           </TouchableOpacity>
         </View>
 

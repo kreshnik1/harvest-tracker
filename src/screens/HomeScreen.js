@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOW } from '../theme';
-import { useCurrency } from '../context/SettingsContext';
+import { useCurrency, useTranslation } from '../context/SettingsContext';
 import { formatSurface, formatDate } from '../utils/helpers';
 
 export default function HomeScreen({ navigation }) {
@@ -16,6 +16,7 @@ export default function HomeScreen({ navigation }) {
   const { jobs, stats, loaded, loadJobs } = useData();
   const insets = useSafeAreaInsets();
   const fmt = useCurrency();
+  const t = useTranslation();
 
   useEffect(() => {
     loadJobs();
@@ -34,7 +35,7 @@ export default function HomeScreen({ navigation }) {
       <View style={[styles.headerBg, { paddingTop: insets.top + SPACING.sm }]}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0]} 👋</Text>
+            <Text style={styles.greeting}>{t('hello')}, {user?.name?.split(' ')[0]} 👋</Text>
             <Text style={styles.headerSub}>Harvest Tracker</Text>
           </View>
           <View style={styles.headerActions}>
@@ -49,9 +50,9 @@ export default function HomeScreen({ navigation }) {
 
         {/* Stats Row */}
         <View style={styles.statsRow}>
-          <StatCard icon="cash-outline" label="Total Earned" value={fmt(stats.totalEarned)} color={COLORS.white} />
-          <StatCard icon="hourglass-outline" label="Unpaid" value={fmt(stats.totalUnpaid)} color="#FFD54F" />
-          <StatCard icon="expand-outline" label="Total Area" value={formatSurface(stats.totalSurface)} color={COLORS.white} />
+          <StatCard icon="cash-outline" label={t('total_earned')} value={fmt(stats.totalEarned)} color={COLORS.white} />
+          <StatCard icon="hourglass-outline" label={t('unpaid')} value={fmt(stats.totalUnpaid)} color="#FFD54F" />
+          <StatCard icon="expand-outline" label={t('total_area')} value={formatSurface(stats.totalSurface)} color={COLORS.white} />
         </View>
       </View>
 
@@ -63,7 +64,7 @@ export default function HomeScreen({ navigation }) {
         >
           <Ionicons name="alert-circle" size={22} color={COLORS.secondary} />
           <Text style={styles.alertText}>
-            {unpaidJobs.length} unpaid job{unpaidJobs.length > 1 ? 's' : ''} — {fmt(stats.totalUnpaid)} pending
+            {unpaidJobs.length} {t('unpaid').toLowerCase()} job{unpaidJobs.length > 1 ? 's' : ''} — {fmt(stats.totalUnpaid)} {t('unpaid_alert')}
           </Text>
           <Ionicons name="chevron-forward" size={18} color={COLORS.secondary} />
         </TouchableOpacity>
@@ -73,25 +74,25 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.quickActions}>
         <QuickAction
           icon="add-circle"
-          label="New Job"
+          label={t('new_job')}
           color={COLORS.primary}
           onPress={() => navigation.navigate('AddJob')}
         />
         <QuickAction
           icon="map"
-          label="Map View"
+          label={t('map_view')}
           color="#1565C0"
           onPress={() => navigation.navigate('Map')}
         />
         <QuickAction
           icon="people"
-          label="Clients"
+          label={t('clients')}
           color="#E65100"
           onPress={() => navigation.navigate('Clients')}
         />
         <QuickAction
           icon="list"
-          label="All Jobs"
+          label={t('all_jobs')}
           color="#4A148C"
           onPress={() => navigation.navigate('Jobs')}
         />
@@ -100,18 +101,18 @@ export default function HomeScreen({ navigation }) {
       {/* Recent Jobs */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Jobs</Text>
+          <Text style={styles.sectionTitle}>{t('recent_jobs')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Jobs')}>
-            <Text style={styles.seeAll}>See all</Text>
+            <Text style={styles.seeAll}>{t('see_all')}</Text>
           </TouchableOpacity>
         </View>
 
         {recentJobs.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="leaf-outline" size={48} color={COLORS.grayBorder} />
-            <Text style={styles.emptyText}>No jobs yet</Text>
+            <Text style={styles.emptyText}>{t('no_jobs_yet')}</Text>
             <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('AddJob')}>
-              <Text style={styles.emptyBtnText}>Add your first job</Text>
+              <Text style={styles.emptyBtnText}>{t('add_first_job')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -136,7 +137,7 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.jobRight}>
                 <Text style={styles.jobPrice}>{fmt(job.totalPrice)}</Text>
                 <Text style={[styles.jobPaidLabel, { color: job.paid ? COLORS.success : COLORS.danger }]}>
-                  {job.paid ? 'Paid' : 'Unpaid'}
+                  {job.paid ? t('paid') : t('unpaid')}
                 </Text>
               </View>
             </TouchableOpacity>

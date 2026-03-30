@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../context/AuthContext';
 import { DataProvider } from '../context/DataContext';
+import { useTranslation } from '../context/SettingsContext';
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -35,6 +36,7 @@ function AuthStack() {
 }
 
 function MainTabs() {
+  const t = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -67,11 +69,11 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Jobs" component={JobsScreen} options={{ tabBarLabel: 'Jobs' }} />
-      <Tab.Screen name="Map" component={MapScreen} options={{ tabBarLabel: 'Map' }} />
-      <Tab.Screen name="Clients" component={ClientsScreen} options={{ tabBarLabel: 'Clients' }} />
-      <Tab.Screen name="Stats" component={StatsScreen} options={{ tabBarLabel: 'Stats' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: t('nav_home') }} />
+      <Tab.Screen name="Jobs" component={JobsScreen} options={{ tabBarLabel: t('nav_jobs') }} />
+      <Tab.Screen name="Map" component={MapScreen} options={{ tabBarLabel: t('nav_map') }} />
+      <Tab.Screen name="Clients" component={ClientsScreen} options={{ tabBarLabel: t('nav_clients') }} />
+      <Tab.Screen name="Stats" component={StatsScreen} options={{ tabBarLabel: t('nav_stats') }} />
     </Tab.Navigator>
   );
 }

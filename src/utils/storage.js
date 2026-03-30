@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, toRow, fromRow } from './supabase';
+import { LANGUAGES } from '../i18n/translations';
 
 const KEYS = {
   CURRENT_USER: 'harvest_current_user',
@@ -81,6 +82,9 @@ export const getSettings = async (userId) => {
           symbol: data.currency_symbol,
           name: data.currency_name,
         },
+        language: data.language_code
+          ? (LANGUAGES.find((l) => l.code === data.language_code) ?? null)
+          : null,
       };
       await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(s));
       return s;
@@ -103,6 +107,7 @@ export const saveSettings = async (userId, settings) => {
       currency_code: settings.currency.code,
       currency_symbol: settings.currency.symbol,
       currency_name: settings.currency.name,
+      language_code: settings.language?.code ?? 'en',
     });
     if (error && __DEV__) console.warn('Supabase saveSettings error:', error.message);
   } catch {}
@@ -132,16 +137,29 @@ export const getJobs = async (userId) => {
 
     if (error) throw error;
 
-    const jobs = data.map(fromRow);
-    await saveAllLocal(userId, jobs);
-    return jobs;
+    const remoteJobs = data.map(fromRow);
+    const localJobs = await getLocalJobs(userId);
+
+    // Keep any locally-saved jobs that didn't make it to Supabase yet
+    const remoteIds = new Set(remoteJobs.map((j) => j.id));
+    const unsynced = localJobs.filter((j) => !remoteIds.has(j.id));
+
+    const merged = [...remoteJobs, ...unsynced];
+    await saveAllLocal(userId, merged);
+
+    // Retry syncing unsynced jobs in the background
+    unsynced.forEach((job) => {
+      supabase.from('jobs').insert(toRow(job)).catch(() => {});
+    });
+
+    return merged;
   } catch {
     return getLocalJobs(userId);
   }
 };
 
 export const saveJob = async (job) => {
-  // Save locally
+  // Save locally first — always persists even if Supabase fails
   const data = await AsyncStorage.getItem(KEYS.JOBS);
   const all = data ? JSON.parse(data) : [];
   all.push(job);
@@ -150,7 +168,10 @@ export const saveJob = async (job) => {
   // Sync to Supabase
   const row = toRow(job);
   const { error } = await supabase.from('jobs').insert(row);
-  if (error && __DEV__) console.warn('Supabase saveJob error:', JSON.stringify(error));
+  if (error) {
+    if (__DEV__) console.warn('Supabase saveJob error:', JSON.stringify(error));
+    throw new Error(error.message);
+  }
 };
 
 export const updateJob = async (updatedJob) => {

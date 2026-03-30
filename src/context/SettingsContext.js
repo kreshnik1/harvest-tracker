@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getSettings, saveSettings } from '../utils/storage';
+import { LANGUAGES, translations } from '../i18n/translations';
+
+export { LANGUAGES };
 
 export const CURRENCIES = [
   { code: 'EUR', symbol: '€', name: 'Euro' },
@@ -26,6 +29,7 @@ export const CURRENCIES = [
 
 const DEFAULT_SETTINGS = {
   currency: CURRENCIES[0], // EUR
+  language: LANGUAGES[0],  // English
 };
 
 const SettingsContext = createContext({});
@@ -39,7 +43,12 @@ export const SettingsProvider = ({ children }) => {
   const loadSettingsForUser = async (uid) => {
     setUserId(uid);
     const s = await getSettings(uid);
-    if (s) setSettings(s);
+    if (s) {
+      setSettings({
+        currency: s.currency ?? DEFAULT_SETTINGS.currency,
+        language: s.language ?? DEFAULT_SETTINGS.language,
+      });
+    }
     setLoaded(true);
   };
 
@@ -56,8 +65,16 @@ export const SettingsProvider = ({ children }) => {
     }
   };
 
+  const updateLanguage = async (language) => {
+    const next = { ...settings, language };
+    setSettings(next);
+    if (userId) {
+      await saveSettings(userId, next);
+    }
+  };
+
   return (
-    <SettingsContext.Provider value={{ settings, loaded, updateCurrency, loadSettingsForUser }}>
+    <SettingsContext.Provider value={{ settings, loaded, updateCurrency, updateLanguage, loadSettingsForUser }}>
       {children}
     </SettingsContext.Provider>
   );
@@ -69,7 +86,7 @@ export const useSettings = () => useContext(SettingsContext);
 export const useCurrency = () => {
   const { settings } = useContext(SettingsContext);
   const symbol = settings?.currency?.symbol ?? '€';
-  return React.useCallback(
+  return useCallback(
     (amount) => {
       const val = parseFloat(amount || 0);
       const formatted = Number.isInteger(val) ? val.toLocaleString() : val.toFixed(2);
@@ -77,4 +94,12 @@ export const useCurrency = () => {
     },
     [symbol],
   );
+};
+
+// Hook: returns a t(key) translation function based on the current language
+export const useTranslation = () => {
+  const { settings } = useContext(SettingsContext);
+  const lang = settings?.language?.code ?? 'en';
+  const dict = translations[lang] ?? translations.en;
+  return useCallback((key) => dict[key] ?? key, [dict]);
 };
